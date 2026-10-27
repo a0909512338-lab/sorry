@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>甜蜜日常 · 情侶雙向雲端集點卡</title>
+  <!-- Confetti 特效 & FontAwesome 圖示 -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #FF85A2;
+      --primary-hover: #FF6584;
+      --secondary: #7C73E6;
+      --bg: #FFF5F7;
+      --card-bg: #FFFFFF;
+      --text: #4A4A4A;
+      --text-light: #8C8C8C;
+      --border: #FFE3E8;
+      --shadow: 0 8px 24px rgba(255, 133, 162, 0.15);
+      --success: #4CAF50;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding-bottom: 85px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      background: #FAF8F9;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 30px rgba(0,0,0,0.05);
+    }
+
+    /* 頂部同步狀態列 */
+    .sync-bar {
+      background: #FFF0F3;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sync-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-sync-action {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-sync-action.secondary {
+      background: var(--secondary);
+    }
+
+    /* 頂部角色與點數欄 */
+    .top-bar {
+      background: #FFFFFF;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    }
+
+    .role-switcher {
+      display: flex;
+      background: #F0EDF5;
+      padding: 4px;
+      border-radius: 20px;
+    }
+
+    .role-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-light);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .role-btn.active {
+      background: #FFFFFF;
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .points-badge {
+      background: linear-gradient(135deg, #FF85A2, #FFACAC);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(255, 133, 162, 0.3);
+    }
+
+    /* 分頁頁面內容 */
+    .tab-content {
+      display: none;
+      padding: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 卡片通用樣式 */
+    .card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #333;
+    }
+
+    /* 集點卡 10 格網格 */
+    .stamp-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin: 15px 0;
+    }
+
+    .stamp-slot {
+      aspect-ratio: 1;
+      border: 2px dashed #FFD1DC;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #FFB6C1;
+      position: relative;
+      background: #FFF9FA;
+    }
+
+    .stamp-slot.stamped {
+      border: none;
+      background: linear-gradient(135deg, #FF85A2, #FF6584);
+      color: white;
+      box-shadow: 0 4px 10px rgba(255, 133, 162, 0.4);
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0); }
+      80% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    /* 任務卡片 */
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: #FFFFFF;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      border: 1px solid #F5EBF0;
+    }
+
+    .task-info h4 {
+      font-size: 15px;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .task-info p {
+      font-size: 12px;
+      color: var(--text-light);
+    }
+
+    .btn-complete {
+      background: linear-gradient(135deg, #7C73E6, #9B94F1);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(124, 115, 230, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-complete:disabled {
+      background: #E0E0E0;
+      color: #A0A0A0;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* 個人主頁與頭像 */
+    .profile-header {
+      text-align: center;
+      position: relative;
+      padding: 10px 0 20px;
+    }
+
+    .avatar-wrapper {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 15px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid white;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .avatar-sticker {
+      position: absolute;
+      bottom: 0px;
+      right: 0px;
+      font-size: 22px;
+    }
+
+    .profile-name {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .profile-badge-tag {
+      display: inline-block;
+      background: #FFE8EE;
+      color: var(--primary);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .love-days-box {
+      background: linear-gradient(135deg, #FFF0F3, #FFE5EC);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      margin-top: 15px;
+    }
+
+    .love-days-num {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--primary);
+      margin: 4px 0;
+    }
+
+    /* 美食與零食獎勵兌換卡片 (4 倍點數) */
+    .reward-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+
+    .reward-card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #F0E6EA;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+
+    .reward-card.featured {
+      border: 2px solid #FFD700;
+      background: linear-gradient(135deg, #FFFFFF, #FFFDF0);
+    }
+
+    .reward-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .reward-icon {
+      font-size: 32px;
+    }
+
+    .reward-info h4 {
+      font-size: 15px;
+      color: #333;
+    }
+
+    .reward-info p {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    .reward-cost {
+      color: var(--primary);
+      font-weight: bold;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .btn-redeem {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* 歷程紀錄時間軸 */
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #F5EBF0;
+      font-size: 14px;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    /* 底部導覽列 */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 480px;
+      background: #FFFFFF;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      height: 70px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+      z-index: 1000;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--text-light);
+      font-size: 11px;
+      text-decoration: none;
+      cursor: pointer;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .nav-item i {
+      font-size: 18px;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .nav-item.center-item {
+      position: relative;
+      top: -15px;
+    }
+
+    .center-btn-circle {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #FF85A2, #FF6584);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: 0 6px 16px rgba(255, 133, 162, 0.4);
+      border: 4px solid #FAF8F9;
+    }
+
+    /* 彈出視窗 Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: white;
+      width: 100%;
+      max-width: 380px;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #333;
+    }
+
+    .input-group { margin-bottom: 14px; }
+    .input-group label { display: block; font-size: 12px; color: var(--text-light); margin-bottom: 6px; font-weight: 600; }
+    .input-group input, .input-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #DDD;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel { flex: 1; padding: 10px; border: 1px solid #DDD; background: white; border-radius: 10px; cursor: pointer; }
+    .btn-save { flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+
+    .backup-box {
+      background: #F9F9F9;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed #DDD;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- 頂部狀態列 -->
+  <div class="sync-bar">
+    <span>☁️ <strong id="sync-status">本地模式 (已就緒)</strong></span>
+    <div class="sync-actions">
+      <button class="btn-sync-action" onclick="fetchFromCloud()">🔄 雲端更新</button>
+      <button class="btn-sync-action secondary" onclick="openSyncModal()">⚙️ 設定與備份</button>
+    </div>
+  </div>
+
+  <!-- 頂部角色與點數顯示 -->
+  <div class="top-bar">
+    <div class="role-switcher">
+      <button class="role-btn active" id="role-her" onclick="switchRole('her')">👩 女友</button>
+      <button class="role-btn" id="role-him" onclick="switchRole('him')">👨 男友</button>
+    </div>
+    <div class="points-badge">
+      <i class="fa-solid fa-star"></i>
+      <span id="current-points">0</span> pt
+    </div>
+  </div>
+
+  <!-- TAB 1: 首頁 -->
+  <div class="tab-content active" id="tab-home">
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-stamp" style="color: var(--primary);"></i>
+        <span id="card-owner-name">女友</span> 的集點卡
+      </div>
+      <p style="font-size: 12px; color: var(--text-light); margin-bottom: 10px;">
+        每完成習慣可獲點數與集章（每日限打卡 1 次），集滿 10 章自動歸零並解鎖驚喜！
+      </p>
+      <div class="stamp-grid" id="stamp-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-bolt" style="color: #FFB100;"></i>
+        今日快捷打卡
+      </div>
+      <div id="quick-tasks-container"></div>
+    </div>
+  </div>
+
+  <!-- TAB 2: 紀錄 -->
+  <div class="tab-content" id="tab-history">
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-clock-rotate-left" style="color: var(--secondary);"></i>
+        愛意歷程紀錄
+      </div>
+      <div id="history-container">
+        <p style="text-align: center; color: var(--text-light); padding: 20px;">尚無紀錄，開始打卡累積吧！</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: 個人主頁 -->
+  <div class="tab-content" id="tab-profile">
+    <div class="card profile-header">
+      <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
+        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200" class="avatar-img" id="profile-avatar">
+        <div class="avatar-sticker">✨</div>
+        <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
+      </div>
+      <div class="profile-name" id="profile-display-name">女友</div>
+      <div class="profile-badge-tag" id="profile-display-title">👑 甜蜜小公主</div>
+      <p style="font-size: 13px; color: var(--text-light);" id="profile-display-motto">「今天也要好好喝水，愛你喔！」</p>
+      
+      <button onclick="openEditProfileModal()" style="margin-top: 15px; background: #F0EDF5; border: none; padding: 6px 16px; border-radius: 12px; font-size: 12px; cursor: pointer; color: var(--secondary);">
+        <i class="fa-solid fa-pen"></i> 編輯個人資料
+      </button>
+
+      <div class="love-days-box">
+        <div style="font-size: 12px; color: #888;">我們已經相愛了</div>
+        <div class="love-days-num" id="love-days-count">0</div>
+        <div style="font-size: 12px; color: #888;">DAYS 💕</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: 任務 -->
+  <div class="tab-content" id="tab-tasks">
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-list-check" style="color: var(--primary);"></i> 日常習慣打卡
+      </div>
+      <div id="full-tasks-container"></div>
+    </div>
+  </div>
+
+  <!-- TAB 5: 兌換 -->
+  <div class="tab-content" id="tab-rewards">
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-utensils" style="color: #FF6B6B;"></i>
+        美食與零食獎勵兌換
+      </div>
+      <div class="reward-grid">
+        <div class="reward-card">
+          <div class="reward-left">
+            <div class="reward-icon">🍿</div>
+            <div class="reward-info">
+              <h4>超商零食隨心挑 1 樣</h4>
+              <p>想吃什麼零食由對方買單</p>
+              <div class="reward-cost">24 pt</div>
+            </div>
+          </div>
+          <button class="btn-redeem" onclick="redeemReward('超商零食隨心挑 1 樣', 24)">兌換</button>
+        </div>
+
+        <div class="reward-card">
+          <div class="reward-left">
+            <div class="reward-icon">🧋</div>
+            <div class="reward-info">
+              <h4>解鎖冰涼手搖飲券</h4>
+              <p>無條件點一杯最喜歡的手搖飲料</p>
+              <div class="reward-cost">32 pt</div>
+            </div>
+          </div>
+          <button class="btn-redeem" onclick="redeemReward('解鎖冰涼手搖飲券', 32)">兌換</button>
+        </div>
+
+        <div class="reward-card">
+          <div class="reward-left">
+            <div class="reward-icon">🍕</div>
+            <div class="reward-info">
+              <h4>鹹酥雞 / 宵夜美食券</h4>
+              <p>熱騰騰宵夜美味解鎖</p>
+              <div class="reward-cost">80 pt</div>
+            </div>
+          </div>
+          <button class="btn-redeem" onclick="redeemReward('鹹酥雞/宵夜美食券', 80)">兌換</button>
+        </div>
+
+        <div class="reward-card">
+          <div class="reward-left">
+            <div class="reward-icon">🍰</div>
+            <div class="reward-info">
+              <h4>精緻甜點下午茶券</h4>
+              <p>享受幸福愜意的甜點時光</p>
+              <div class="reward-cost">120 pt</div>
+            </div>
+          </div>
+          <button class="btn-redeem" onclick="redeemReward('精緻甜點下午茶券', 120)">兌換</button>
+        </div>
+
+        <div class="reward-card featured">
+          <div class="reward-left">
+            <div class="reward-icon">🍲</div>
+            <div class="reward-info">
+              <h4>暖心火鍋 / 薩利亞大餐券</h4>
+              <p>👑 豪華美食請客大特權！</p>
+              <div class="reward-cost">200 pt</div>
+            </div>
+          </div>
+          <button class="btn-redeem" style="background: linear-gradient(135deg, #FFB100, #FF85A2);" onclick="redeemReward('暖心火鍋 / 薩利亞大餐券', 200)">兌換</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部導覽列 -->
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('home', this)">
+      <i class="fa-solid fa-house"></i>
+      <span>首頁</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('history', this)">
+      <i class="fa-solid fa-receipt"></i>
+      <span>紀錄</span>
+    </div>
+    <div class="nav-item center-item" onclick="switchTab('profile', this)">
+      <div class="center-btn-circle">
+        <i class="fa-solid fa-heart"></i>
+      </div>
+      <span style="margin-top: 4px;">個人主頁</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('tasks', this)">
+      <i class="fa-solid fa-list-check"></i>
+      <span>任務</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('rewards', this)">
+      <i class="fa-solid fa-gift"></i>
+      <span>兌換</span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 編輯個人資料 -->
+<div class="modal-overlay" id="modal-edit-profile">
+  <div class="modal">
+    <div class="modal-title">編輯個人資料</div>
+    <div class="input-group">
+      <label>暱稱</label>
+      <input type="text" id="edit-name-input">
+    </div>
+    <div class="input-group">
+      <label>頭銜稱號</label>
+      <input type="text" id="edit-title-input">
+    </div>
+    <div class="input-group">
+      <label>戀愛宣言</label>
+      <input type="text" id="edit-motto-input">
+    </div>
+    <div class="input-group">
+      <label>交往紀念日</label>
+      <input type="date" id="edit-date-input">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-edit-profile')">取消</button>
+      <button class="btn-save" onclick="saveProfile()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 雲端連線與手動 JSON 匯入匯出設定 -->
+<div class="modal-overlay" id="modal-sync">
+  <div class="modal">
+    <div class="modal-title">⚙️ 雲端同步與備份設定</div>
+    
+    <div class="backup-box">
+      <label style="font-weight: bold; font-size: 13px; color: #333;">🔗 房間共享網址</label>
+      <p style="font-size: 11px; color: var(--text-light); margin: 4px 0 8px;">傳送網址給另一半，綁定相同房間號：</p>
+      <button class="btn-save" style="width: 100%; font-size: 12px; padding: 8px;" onclick="copyRoomLink()">📋 複製專屬房間網址</button>
+    </div>
+
+    <div class="input-group">
+      <label>自訂雲端 API 網址 (選擇性)</label>
+      <input type="text" id="custom-sync-url" placeholder="例如：JSONbin, Firebase 或自訂 API 網址">
+    </div>
+
+    <hr style="border: none; border-top: 1px solid #EEE; margin: 15px 0;">
+
+    <div class="backup-box">
+      <label style="font-weight: bold; font-size: 13px; color: #333;">📦 手動 100% 保底備份/還原</label>
+      <p style="font-size: 11px; color: var(--text-light); margin: 4px 0 8px;">如果網路受限，可直接複製 JSON 代碼發給對方貼上還原：</p>
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <button class="btn-cancel" style="font-size: 12px; font-weight: bold;" onclick="exportJSON()">複製備份碼</button>
+        <button class="btn-cancel" style="font-size: 12px; font-weight: bold;" onclick="importJSON()">貼上還原</button>
+      </div>
+      <textarea id="json-backup-text" rows="3" placeholder="備份碼將顯示於此，或在此貼上備份碼..." style="width:100%; font-size: 11px; padding: 8px; border: 1px solid #DDD; border-radius: 8px;"></textarea>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-sync')">關閉</button>
+      <button class="btn-save" onclick="saveSyncSettings()">儲存連線設定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 預設資料結構
+  const defaultData = {
+    her: {
+      name: '女友',
+      title: '👑 甜蜜小公主',
+      motto: '今天也要好好喝水，愛你喔！',
+      points: 0,
+      stamps: 0,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200',
+      loveDate: '2024-05-20',
+      history: [],
+      lastChecked: {}
+    },
+    him: {
+      name: '男友',
+      title: '🛡️ 貼心守護者',
+      motto: '專屬聽話與陪伴服務中',
+      points: 0,
+      stamps: 0,
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200',
+      loveDate: '2024-05-20',
+      history: [],
+      lastChecked: {}
+    },
+    tasks: [
+      { id: 't1', title: '💧 有好好喝水 2000cc', desc: '維護健康的身體！', points: 2 },
+      { id: 't2', title: '🌙 11:30 前準時睡覺', desc: '不熬夜讓皮膚變好', points: 3 },
+      { id: 't3', title: '💌 主動跟對方說「想你」', desc: '隨時傳遞甜蜜愛意', points: 1 },
+      { id: 't4', title: '🏃 完成運動 20 分鐘', desc: '一起保持活力健身', points: 4 }
+    ]
+  };
+
+  // 房間與儲存綁定 (包含 Blob / iFrame 安全保護)
+  let roomKey = 'sweet_couple_room';
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('room')) {
+      roomKey = urlParams.get('room');
+    } else if (window.location.protocol !== 'blob:' && window.location.href.startsWith('http')) {
+      window.history.replaceState(null, '', `?room=${roomKey}`);
+    }
+  } catch (e) {
+    console.warn('History API or URL parameters not accessible in this context:', e);
+  }
+
+  let customSyncUrl = localStorage.getItem('custom_sync_url') || '';
+  let store = JSON.parse(localStorage.getItem(`couple_data_${roomKey}`)) || JSON.parse(JSON.stringify(defaultData));
+  let currentRole = 'her';
+
+  // 雲端拉取機制
+  async function fetchFromCloud() {
+    const statusEl = document.getElementById('sync-status');
+    statusEl.innerText = '🔄 同步中...';
+
+    // 優先讀取本地，保證畫面不會空白
+    renderApp();
+
+    if (!customSyncUrl) {
+      statusEl.innerText = '🟢 本地狀態 (可設定雲端)';
+      return;
+    }
+
+    try {
+      const res = await fetch(customSyncUrl, { method: 'GET' });
+      if (res.ok) {
+        const cloudData = await res.json();
+        if (cloudData && (cloudData.her || cloudData.record || cloudData.data)) {
+          store = cloudData.record || cloudData.data || cloudData;
+          saveLocal();
+          statusEl.innerText = '🟢 雲端同步成功';
+          renderApp();
+          return;
+        }
+      }
+      statusEl.innerText = '🟡 雲端連線失敗，已使用本地資料';
+    } catch (e) {
+      statusEl.innerText = '🟡 本地獨立模式';
+    }
+  }
+
+  // 雲端推送機制
+  async function saveToCloud() {
+    saveLocal();
+    const statusEl = document.getElementById('sync-status');
+    
+    if (!customSyncUrl) {
+      statusEl.innerText = '🟢 本地儲存完成';
+      return;
+    }
+
+    statusEl.innerText = '⏳ 雲端同步中...';
+    try {
+      const res = await fetch(customSyncUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(store)
+      });
+      if (res.ok) {
+        statusEl.innerText = '🟢 已同步至雲端';
+      } else {
+        statusEl.innerText = '🟡 僅儲存於本地';
+      }
+    } catch (e) {
+      statusEl.innerText = '🟡 僅儲存於本地';
+    }
+  }
+
+  function saveLocal() {
+    localStorage.setItem(`couple_data_${roomKey}`, JSON.stringify(store));
+  }
+
+  function switchRole(role) {
+    currentRole = role;
+    document.getElementById('role-her').classList.toggle('active', role === 'her');
+    document.getElementById('role-him').classList.toggle('active', role === 'him');
+    renderApp();
+  }
+
+  function switchTab(tabId, el) {
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+    document.getElementById(`tab-${tabId}`).classList.add('active');
+    if (el) el.classList.add('active');
+  }
+
+  function getTodayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function renderApp() {
+    const data = store[currentRole] || defaultData[currentRole];
+    if (!data.lastChecked) data.lastChecked = {};
+    
+    document.getElementById('current-points').innerText = data.points;
+    document.getElementById('card-owner-name').innerText = data.name;
+
+    // 渲染 10 格集點章
+    const stampGrid = document.getElementById('stamp-grid');
+    stampGrid.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+      const slot = document.createElement('div');
+      slot.className = `stamp-slot ${i <= data.stamps ? 'stamped' : ''}`;
+      slot.innerHTML = i <= data.stamps ? '<i class="fa-solid fa-heart"></i>' : i;
+      stampGrid.appendChild(slot);
+    }
+
+    const today = getTodayStr();
+
+    // 快捷打卡
+    const quickContainer = document.getElementById('quick-tasks-container');
+    quickContainer.innerHTML = '';
+    (store.tasks || defaultData.tasks).slice(0, 2).forEach(task => {
+      quickContainer.appendChild(createTaskElement(task, today, data.lastChecked[task.id] === today));
+    });
+
+    // 完整任務打卡
+    const fullContainer = document.getElementById('full-tasks-container');
+    fullContainer.innerHTML = '';
+    (store.tasks || defaultData.tasks).forEach(task => {
+      fullContainer.appendChild(createTaskElement(task, today, data.lastChecked[task.id] === today));
+    });
+
+    // 個人主頁
+    document.getElementById('profile-avatar').src = data.avatar || defaultData[currentRole].avatar;
+    document.getElementById('profile-display-name').innerText = data.name;
+    document.getElementById('profile-display-title').innerText = data.title;
+    document.getElementById('profile-display-motto').innerText = `「${data.motto}」`;
+    
+    const startDate = new Date(data.loveDate || '2024-05-20');
+    const diffTime = Math.abs(new Date() - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    document.getElementById('love-days-count').innerText = isNaN(diffDays) ? 0 : diffDays;
+
+    // 歷史紀錄
+    const historyContainer = document.getElementById('history-container');
+    if (!data.history || data.history.length === 0) {
+      historyContainer.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 20px;">尚無紀錄，開始打卡累積吧！</p>';
+    } else {
+      historyContainer.innerHTML = '';
+      data.history.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <div>
+            <div style="font-weight: bold;">${item.title}</div>
+            <div style="font-size: 11px; color: var(--text-light);">${item.time}</div>
+          </div>
+          <div style="font-weight: bold; color: ${item.type === 'add' ? '#4CAF50' : '#FF85A2'};">
+            ${item.type === 'add' ? '+' : '-'}${Math.abs(item.points)} pt
+          </div>
+        `;
+        historyContainer.appendChild(div);
+      });
+    }
+  }
+
+  function createTaskElement(task, today, isCheckedToday) {
+    const div = document.createElement('div');
+    div.className = 'task-item';
+    div.innerHTML = `
+      <div class="task-info">
+        <h4>${task.title}</h4>
+        <p>${isCheckedToday ? '✅ 今日已完成打卡' : task.desc}</p>
+      </div>
+      <button class="btn-complete" ${isCheckedToday ? 'disabled' : ''} onclick="completeTask('${task.id}', '${task.title}', ${task.points})">
+        ${isCheckedToday ? '已完成' : `+${task.points} pt`}
+      </button>
+    `;
+    return div;
+  }
+
+  function completeTask(taskId, title, points) {
+    const data = store[currentRole];
+    const today = getTodayStr();
+
+    if (!data.lastChecked) data.lastChecked = {};
+
+    if (data.lastChecked[taskId] === today) {
+      alert('這個任務今天已經打過卡囉！明天再來吧 💕');
+      return;
+    }
+
+    data.lastChecked[taskId] = today;
+    data.points += points;
+    data.stamps += 1;
+
+    if (!data.history) data.history = [];
+    data.history.unshift({
+      title: title,
+      points: points,
+      time: `${today} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      type: 'add'
+    });
+
+    if (data.stamps >= 10) {
+      data.stamps = 0;
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      alert(`🎉 恭喜！${data.name} 集滿 10 個集點章囉！驚喜禮物準備解鎖 💕`);
+    }
+
+    saveToCloud();
+    renderApp();
+  }
+
+  function redeemReward(name, points) {
+    const data = store[currentRole];
+    if (data.points < points) {
+      alert(`點數不足喔！還差 ${points - data.points} pt`);
+      return;
+    }
+
+    data.points -= points;
+    if (!data.history) data.history = [];
+    const today = getTodayStr();
+    data.history.unshift({
+      title: `兌換：${name}`,
+      points: points,
+      time: `${today} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      type: 'use'
+    });
+
+    confetti({ particleCount: 60, spread: 60 });
+    alert(`成功兌換【${name}】！快憑此卡向對方領取吧 🎁`);
+    saveToCloud();
+    renderApp();
+  }
+
+  function handleAvatarUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      store[currentRole].avatar = evt.target.result;
+      saveToCloud();
+      renderApp();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function openEditProfileModal() {
+    const data = store[currentRole];
+    document.getElementById('edit-name-input').value = data.name;
+    document.getElementById('edit-title-input').value = data.title;
+    document.getElementById('edit-motto-input').value = data.motto;
+    document.getElementById('edit-date-input').value = data.loveDate || '2024-05-20';
+    document.getElementById('modal-edit-profile').classList.add('active');
+  }
+
+  function saveProfile() {
+    const data = store[currentRole];
+    data.name = document.getElementById('edit-name-input').value || data.name;
+    data.title = document.getElementById('edit-title-input').value || data.title;
+    data.motto = document.getElementById('edit-motto-input').value || data.motto;
+    data.loveDate = document.getElementById('edit-date-input').value || data.loveDate;
+
+    closeModal('modal-edit-profile');
+    saveToCloud();
+    renderApp();
+  }
+
+  /* 雲端與備份 Modal */
+  function openSyncModal() {
+    document.getElementById('custom-sync-url').value = customSyncUrl;
+    document.getElementById('json-backup-text').value = '';
+    document.getElementById('modal-sync').classList.add('active');
+  }
+
+  function saveSyncSettings() {
+    customSyncUrl = document.getElementById('custom-sync-url').value.trim();
+    localStorage.setItem('custom_sync_url', customSyncUrl);
+    closeModal('modal-sync');
+    fetchFromCloud();
+  }
+
+  function copyRoomLink() {
+    const link = window.location.href;
+    document.getElementById('json-backup-text').value = link;
+    document.getElementById('json-backup-text').select();
+    document.execCommand('copy');
+    alert('已複製房間專屬網址！發送給另一半即可同步房間號。');
+  }
+
+  function exportJSON() {
+    const jsonStr = JSON.stringify(store);
+    const txt = document.getElementById('json-backup-text');
+    txt.value = jsonStr;
+    txt.select();
+    document.execCommand('copy');
+    alert('已將資料備份碼複製至剪貼簿！');
+  }
+
+  function importJSON() {
+    const txt = document.getElementById('json-backup-text').value.trim();
+    if (!txt) {
+      alert('請先在文字框中貼上備份碼！');
+      return;
+    }
+    try {
+      const imported = JSON.parse(txt);
+      if (imported && (imported.her || imported.him)) {
+        store = imported;
+        saveToCloud();
+        renderApp();
+        alert('🎉 資料還原成功！');
+        closeModal('modal-sync');
+      } else {
+        alert('備份碼格式不正確！');
+      }
+    } catch (e) {
+      alert('無效的 JSON 備份碼！');
+    }
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+  }
+
+  // 初始啟動
+  fetchFromCloud();
+</script>
+
+</body>
+</html>
